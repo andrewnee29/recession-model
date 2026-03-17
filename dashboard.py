@@ -17,7 +17,6 @@ from src.model import (train_model, predict_proba_series,
 # ── PAGE CONFIG ──────────────────────────────────────────────
 st.set_page_config(
     page_title="US Recession Probability Model",
-    page_icon="📉",
     layout="wide"
 )
 
@@ -54,20 +53,19 @@ def add_recession_shading(fig, dates, rec_series, row=1):
 
 # ── APP ───────────────────────────────────────────────────────
 def main():
-    st.title("📉 US Recession Probability Model")
+    st.title("US Recession Probability Model")
     st.caption(
         "ML model trained on FRED economic indicators · "
-        "Predicts recession risk over next 3 months"
+        "Predicts recession risk over the next 6 months"
     )
 
     # ── Sidebar ──────────────────────────────────────────────
     with st.sidebar:
-        st.markdown("## 📉 Recession Model")
+        st.markdown("## Recession Model")
         st.caption("Predicts recession risk over the next 6 months using FRED economic data.")
 
         st.markdown("---")
 
-        # API key — prefer environment variable, fallback to text input
         api_key = os.getenv("FRED_API_KEY") or st.text_input(
             "FRED API Key",
             type="password",
@@ -76,24 +74,25 @@ def main():
 
         st.markdown("---")
 
-        with st.expander("📊 Indicators used"):
+        with st.expander("Indicators used"):
             for name in list(SERIES.values())[1:]:
                 st.markdown(f"- {name}")
 
-        with st.expander("🧠 Model summary"):
+        with st.expander("Model summary"):
             st.markdown("""
             **Algorithm:** Logistic Regression  
             **Validation:** TimeSeriesSplit (5 folds)  
-            **Features lagged:** ≥1 month  
+            **Features lagged:** 1 month  
             **Target:** Recession onset within 6 months  
             **Class balancing:** Weighted to prioritize recall  
+            **Regularization:** L2, C=0.1
             """)
 
         st.markdown("---")
         st.caption("Data sourced from FRED · Not financial advice")
 
     if not api_key:
-        st.info("👈 Enter your FRED API key in the sidebar to load data.")
+        st.info("Enter your FRED API key in the sidebar to load data.")
         st.stop()
 
     # ── Load & train ─────────────────────────────────────────
@@ -105,11 +104,11 @@ def main():
     current_date = feat.index[-1].strftime("%B %Y")
 
     if current_prob > 0.60:
-        signal = "HIGH RISK ⚠️"
+        signal = "HIGH RISK"
     elif current_prob > 0.35:
-        signal = "ELEVATED RISK 🟡"
+        signal = "ELEVATED RISK"
     else:
-        signal = "LOW RISK 🟢"
+        signal = "LOW RISK"
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Recession Probability", f"{current_prob:.1%}", delta=signal)
@@ -122,7 +121,7 @@ def main():
 
     # ── Tabs ─────────────────────────────────────────────────
     tab1, tab2, tab3, tab4 = st.tabs(
-        ["📈 Probability", "📊 Indicators", "📐 Coefficients", "📖 Methodology"]
+        ["Probability", "Indicators", "Coefficients", "Methodology"]
     )
 
     # Tab 1 — Recession probability
@@ -193,7 +192,7 @@ def main():
             )
             st.plotly_chart(fig2, use_container_width=True)
 
-    # Tab 3 — Feature importance
+    # Tab 3 — Coefficients
     with tab3:
         plot_df = fi_df.head(12).sort_values("importance")
         fig3 = px.bar(
@@ -235,7 +234,7 @@ def main():
           generalizable patterns.
         - **Interpretability** — logistic regression coefficients directly show how each 
           indicator pushes the probability up or down, which is important for understanding 
-          *why* the model is signaling risk.
+          why the model is signaling risk.
         - **Regularization (L2, C=0.1)** — L2 regularization penalizes large coefficients 
           by adding the sum of squared weights to the loss function. This shrinks all 
           coefficients toward zero without eliminating any feature entirely — appropriate 
@@ -244,49 +243,58 @@ def main():
           whichever indicator happened to spike before any single recession.
         - **Balanced class weights** — recessions occur in only ~10% of months. Without 
           correction the model would just predict "no recession" always. Balanced weights 
-          force the model to treat missed recessions as costly errors, prioritizing **recall** 
+          force the model to treat missed recessions as costly errors, prioritizing recall 
           over precision — appropriate when the cost of missing a recession far exceeds the 
           cost of a false alarm.
         """)
 
         st.markdown("### Preventing Data Leakage")
         st.markdown("""
-        A critical challenge in time series modeling is **data leakage** — accidentally 
-        allowing the model to learn from future information when predicting the past.
+        Data leakage occurs when a model accidentally trains on information it couldn't 
+        have known at prediction time, producing artificially good backtest performance 
+        that fails in production.
 
         Two safeguards are in place:
 
-        1. **All features are lagged by at least 1 month** — the model only sees data that 
-           would have been available at the time of prediction.
-        2. **TimeSeriesSplit cross-validation** — instead of randomly shuffling folds 
-           (which would let future data leak into training), each validation fold only 
-           contains data *after* the training fold. This gives an honest estimate of how 
-           the model would perform in real time.
+        **1. Feature lagging** — every feature is shifted back by at least 1 month. 
+        For example, when predicting January's recession risk the model only sees 
+        December's indicators. This mirrors what an investor actually knows in real time — 
+        economic data is published with a delay, and using the current month's data to 
+        predict the current month's label would be cheating.
+
+        **2. TimeSeriesSplit cross-validation** — standard k-fold CV randomly shuffles 
+        data, allowing future observations to leak into training folds. TimeSeriesSplit 
+        ensures each validation fold only contains data after the training fold, giving 
+        an honest estimate of real-time performance.
         """)
 
         st.markdown("### Target Variable")
         st.markdown("""
-        The label is `1` if an **NBER-defined recession begins within the next 6 months**, 
-        `0` otherwise. This forward-looking label makes the model practically useful — 
-        it predicts *onset*, not whether a recession is already underway.
+        The label is 1 if an NBER-defined recession begins within the next 6 months, 
+        0 otherwise. This forward-looking label makes the model practically useful — 
+        it predicts onset, not whether a recession is already underway.
 
         NBER recession dates are the gold standard for US recession classification, 
         though they are published with a significant lag — meaning the most recent labels 
         may shift as new data arrives.
         """)
 
-        st.markdown("### Features & Economic Intuition")
+        st.markdown("### Features and Economic Intuition")
 
         features = {
-            "Yield Curve (10Y–2Y)": (
+            "Yield Curve (10Y-2Y)": (
                 "When short-term rates exceed long-term rates, banks stop lending "
-                "profitably and credit tightens economy-wide. Yield curve inversion "
-                "has preceded every recession since 1970, typically 12–18 months in advance."
+                "profitably and credit tightens economy-wide. This happens because banks "
+                "borrow short and lend long — an inverted curve eliminates their profit "
+                "margin. It also signals that bond markets expect rates to fall in the "
+                "future, implying anticipated economic weakness. Has preceded every "
+                "recession since 1970, typically 12–18 months in advance."
             ),
-            "Unemployment Rate & 3M Change": (
+            "Unemployment Rate and 3-Month Change": (
                 "Rising unemployment signals businesses are contracting. The 3-month "
-                "change is particularly important — it captures the *acceleration* of "
-                "labor market deterioration, not just the level."
+                "change captures the acceleration of labor market deterioration, not "
+                "just the level — a slowly rising rate is more informative than the "
+                "rate itself."
             ),
             "Sahm Rule Indicator": (
                 "Triggers when the 3-month average unemployment rate rises 0.5 percentage "
@@ -301,23 +309,23 @@ def main():
             "Core PCE Inflation YoY": (
                 "The Fed's preferred inflation measure. Elevated inflation constrains the "
                 "Fed's ability to cut rates in response to weakness, potentially trapping "
-                "the economy in a high-rate, slowing-growth environment — the stagflation scenario."
+                "the economy in a high-rate, slowing-growth stagflation environment."
             ),
-            "Consumer Sentiment & 6M Change": (
-                "Consumers drive ~70% of US GDP. Falling sentiment is a forward-looking "
-                "signal that spending is about to slow before it appears in hard economic "
-                "data. The 6-month change captures trend deterioration."
+            "Consumer Sentiment and 6-Month Change": (
+                "Consumers drive approximately 70% of US GDP. Falling sentiment is a "
+                "forward-looking signal that spending is about to slow before it appears "
+                "in hard economic data. The 6-month change captures trend deterioration."
             ),
-            "Credit Card Delinquency Rate & Change": (
+            "Credit Card Delinquency Rate and Change": (
                 "Rising delinquencies signal consumers are financially stressed and "
                 "over-leveraged. Banks respond by tightening credit standards, which "
                 "amplifies the economic slowdown through reduced lending."
             ),
-            "Federal Funds Rate & 6M Change": (
+            "Federal Funds Rate and 6-Month Change": (
                 "The trajectory of rate changes shapes borrowing costs economy-wide. "
-                "Historically, the Fed begins cutting rates before recessions — so a "
+                "Historically the Fed begins cutting rates before recessions — so a "
                 "declining fed funds rate is often a pre-recession signal. The current "
-                "environment (rates on hold) is structurally different from prior recessions."
+                "environment of rates on hold is structurally different from prior recessions."
             ),
         }
 
@@ -327,15 +335,15 @@ def main():
 
         st.markdown("### Model Limitations")
         st.markdown("""
-        - **Few training examples** — only 3–4 recessions since 1990 limits the model's 
-          ability to generalize to novel economic environments.
-        - **Structural differences** — the current environment (high rates, sticky inflation, 
-          Fed on hold) differs from 2001, 2008, and 2020 recessions which all featured 
-          aggressive pre-recession rate cuts. The model may underestimate risk in this regime.
-        - **Black swan events** — sudden shocks like COVID-19 or geopolitical crises are 
-          not predictable from lagged indicators.
-        - **NBER lag** — recession dates are officially confirmed months after onset, 
-          meaning recent training labels may be revised.
+        - Only 3–4 recessions since 1990 limits the model's ability to generalize to 
+          novel economic environments.
+        - The current environment of high rates and sticky inflation differs from 2001, 
+          2008, and 2020 recessions which all featured aggressive pre-recession rate cuts. 
+          The model may underestimate risk in this regime.
+        - Sudden shocks like COVID-19 or geopolitical crises are not predictable from 
+          lagged indicators.
+        - NBER recession dates are officially confirmed months after onset, meaning 
+          recent training labels may be revised.
         - This model is a research tool. It is not financial advice.
         """)
 
