@@ -62,7 +62,12 @@ def train_model(feat: pd.DataFrame, feature_cols: list):
         prob = model.predict_proba(X_te)[:, 1]
         auc  = roc_auc_score(y[te], prob)
         auc_scores.append(auc)
-        print(f"  Fold {fold} AUC: {auc:.3f}")
+
+        # diagnostic — show fold composition
+        n_rec_tr = y[tr].sum()
+        n_rec_te = y[te].sum()
+        print(f"  Fold {fold} | train: {len(tr)} months, {int(n_rec_tr)} recession | "
+              f"test: {len(te)} months, {int(n_rec_te)} recession | AUC: {auc:.3f}")
 
     mean_auc  = float(np.mean(auc_scores))
     print(f"\nMean CV AUC: {mean_auc:.3f} ± {np.std(auc_scores):.3f}")
