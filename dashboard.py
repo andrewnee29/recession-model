@@ -141,7 +141,7 @@ def main():
                       annotation_text=f"Current: {current_prob:.1%}",
                       annotation_position="bottom right")
         fig.update_layout(
-            title="Recession Probability (3-Month Forward)",
+            title="Recession Probability (6-Month Forward)",
             yaxis_title="Probability", yaxis_range=[0, 1],
             height=450, hovermode="x unified"
         )
@@ -232,8 +232,12 @@ def main():
         - **Interpretability** — logistic regression coefficients directly show how each 
           indicator pushes the probability up or down, which is important for understanding 
           *why* the model is signaling risk.
-        - **Regularization (C=0.1)** — strong regularization prevents the model from 
-          overfitting to any single recession's characteristics.
+        - **Regularization (L2, C=0.1)** — L2 regularization penalizes large coefficients 
+          by adding the sum of squared weights to the loss function. This shrinks all 
+          coefficients toward zero without eliminating any feature entirely — appropriate 
+          here because every indicator was chosen for economic reasons and should contribute. 
+          C=0.1 applies strong regularization, preventing the model from over-relying on 
+          whichever indicator happened to spike before any single recession.
         - **Balanced class weights** — recessions occur in only ~10% of months. Without 
           correction the model would just predict "no recession" always. Balanced weights 
           force the model to treat missed recessions as costly errors, prioritizing **recall** 

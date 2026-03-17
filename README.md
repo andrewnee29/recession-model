@@ -3,7 +3,7 @@
 
 A machine learning model that estimates the probability of a US recession over the next 3 months, trained on real Federal Reserve economic data.
 
-**[🔴 Live Dashboard →](https://yourname-recession-model.streamlit.app)** ← replace with your Streamlit URL
+**[🔴 Live Dashboard](https://yourname-recession-model.streamlit.app)** 
 
 ---
 
@@ -71,9 +71,19 @@ Gradient Boosting Classifier (scikit-learn) with:
 - Subsampling (0.8) to reduce overfitting
 - TimeSeriesSplit cross-validation to respect temporal ordering
 
-**Why Gradient Boosting over Random Forest or Logistic Regression?**
+**Why Logistic Regression over Random Forest or Gradient Boosting?**
 
 Recession prediction is a weak signal problem — no single indicator reliably predicts downturns. The predictive power comes from *interactions* between indicators: an inverted yield curve alone is insufficient, but combined with rising delinquencies and negative payrolls it tells a very different story. Gradient Boosting's sequential error correction iteratively learns these subtle interactions, making it better suited than Random Forest (which averages independent trees, smoothing interactions away) or Logistic Regression (which assumes linear relationships). The class imbalance (~10% recession months) also favors boosting, as the sequential weighting naturally focuses more attention on hard-to-classify pre-recession periods.
+
+However after testing, Logistic Regression was ultimately chosen because the dataset contains only 3–4 recessions. Gradient Boosting memorized the specific signatures of those events rather than learning generalizable patterns, producing near-zero probability outside of known recession periods. Logistic Regression generalizes better under data scarcity.
+
+**Regularization: L2 (Ridge), C=0.1**
+
+L2 regularization adds a penalty equal to the sum of squared coefficients to the loss function:
+
+$\text{Loss} = \text{log-loss} + \frac{1}{C} \sum_j w_j^2$
+
+This shrinks all coefficients toward zero without forcing any to exactly zero — keeping every indicator in the model while preventing over-reliance on any single feature. L1 (Lasso) was not used because it would zero out some features entirely; since every indicator was chosen for economic reasons, all should contribute. C=0.1 applies strong regularization, which is appropriate given the small number of training recessions.
 
 ### Why TimeSeriesSplit?
 Standard k-fold CV would allow future data to leak into training folds, artificially inflating performance. TimeSeriesSplit ensures each validation fold only sees data the model couldn't have known at that point in time.

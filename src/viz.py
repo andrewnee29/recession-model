@@ -51,7 +51,7 @@ def plot_recession_probability(feat: pd.DataFrame, probs: np.ndarray,
     ax.axhline(current_prob, color="darkred", linestyle=":",
                linewidth=0.8, label=f"Current: {current_prob:.1%}")
 
-    ax.set_title("US Recession Probability — 3-Month Forward Estimate",
+    ax.set_title("US Recession Probability — 6-Month Forward Estimate",
                  fontsize=14, fontweight="bold")
     ax.set_ylabel("Probability")
     ax.set_ylim(0, 1)
