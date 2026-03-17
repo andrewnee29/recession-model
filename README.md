@@ -10,7 +10,11 @@ A machine learning model that estimates the probability of a US recession beginn
 
 This project pulls economic indicators directly from the FRED API, engineers predictive features, and trains a Logistic Regression classifier to estimate near-term recession risk. The model currently estimates recession probability at **19.8%** as of March 2026.
 
-I built this because I got genuinely interested in the macro signals accumulating in early 2026 — weakening labor markets, elevated credit card delinquencies, and sticky inflation — and wanted to quantify the risk rather than just read about it.
+---
+
+## Background
+
+I got genuinely interested in the macro signals accumulating in early 2026 — weakening labor markets, elevated credit card delinquencies, and sticky inflation — and wanted to quantify the risk rather than just read about it. The Boston Fed's FRED database made that possible with entirely free, real-time data. What started as a simple data pull grew into a full ML pipeline.
 
 ---
 
@@ -142,12 +146,6 @@ python main.py
 # Launch the dashboard
 streamlit run dashboard.py
 ```
-
----
-
-## Background
-
-I'm a math and data science student at Northeastern University with an interest in the intersection of quantitative modeling and macroeconomics. This project started as a genuine question about the 2026 macro environment — I kept reading about recession indicators and wanted to build something that tracked them systematically rather than relying on headlines. The Boston Fed's FRED database made that possible with entirely free, real-time data.
 
 ---
 
