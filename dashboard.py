@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-from src.data  import fetch_fred_data, engineer_features, get_feature_cols, SERIES
+from src.data import fetch_fred_data, engineer_features, get_feature_cols, SERIES
 from src.model import (train_model, predict_proba_series,
                        current_probability, feature_importance_df)
 
@@ -26,13 +26,13 @@ st.set_page_config(
 @st.cache_data(show_spinner=False)
 def load_and_train(api_key: str):
     """Fetch data, engineer features, train model. Cached after first run."""
-    df_raw       = fetch_fred_data(api_key)
-    feat         = engineer_features(df_raw)
+    df_raw = fetch_fred_data(api_key)
+    feat = engineer_features(df_raw)
     feature_cols = get_feature_cols(feat)
     model, scaler, mean_auc, _ = train_model(feat, feature_cols)
-    probs        = predict_proba_series(feat, feature_cols, model, scaler)
+    probs = predict_proba_series(feat, feature_cols, model, scaler)
     feat["prob"] = probs
-    fi_df        = feature_importance_df(model, feature_cols)
+    fi_df = feature_importance_df(model, feature_cols)
     return feat, model, scaler, feature_cols, mean_auc, fi_df
 
 
@@ -41,7 +41,8 @@ def add_recession_shading(fig, dates, rec_series, row=1):
     in_rec, start = False, None
     for d, r in zip(dates, rec_series):
         if r == 1 and not in_rec:
-            start = d; in_rec = True
+            start = d;
+            in_rec = True
         elif r == 0 and in_rec:
             fig.add_vrect(
                 x0=start, x1=d,
@@ -112,8 +113,8 @@ def main():
     st.markdown("---")
 
     # ── Tabs ─────────────────────────────────────────────────
-    tab1, tab2, tab3 = st.tabs(
-        ["📈 Probability", "📊 Indicators", "🔍 Feature Importance"]
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["📈 Probability", "📊 Indicators", "🔍 Feature Importance", "📖 Methodology"]
     )
 
     # Tab 1 — Recession probability
@@ -142,13 +143,13 @@ def main():
     # Tab 2 — Key indicators
     with tab2:
         indicator_map = {
-            "Yield Curve (10Y-2Y)":        ("yield_curve",        "steelblue"),
-            "Unemployment Rate":            ("unemployment",       "darkorange"),
-            "Sahm Rule Indicator":          ("sahm_rule",          "purple"),
-            "Payroll Growth YoY %":         ("payroll_yoy",        "green"),
-            "Core PCE Inflation YoY %":     ("core_pce_yoy",       "red"),
-            "Consumer Sentiment":           ("consumer_sentiment", "teal"),
-            "Credit Card Delinquency Rate": ("cc_delinquency",     "brown"),
+            "Yield Curve (10Y-2Y)": ("yield_curve", "steelblue"),
+            "Unemployment Rate": ("unemployment", "darkorange"),
+            "Sahm Rule Indicator": ("sahm_rule", "purple"),
+            "Payroll Growth YoY %": ("payroll_yoy", "green"),
+            "Core PCE Inflation YoY %": ("core_pce_yoy", "red"),
+            "Consumer Sentiment": ("consumer_sentiment", "teal"),
+            "Credit Card Delinquency Rate": ("cc_delinquency", "brown"),
         }
 
         selected = st.multiselect(
@@ -202,6 +203,125 @@ def main():
             "Features are ranked by how much they reduce impurity "
             "across all decision trees in the model."
         )
+
+    # Tab 4 — Methodology
+    with tab4:
+        st.markdown("## How the Model Works")
+        st.markdown("""
+        This model estimates the probability that a US recession will begin within the 
+        next 6 months, using real-time economic data from the Federal Reserve (FRED).
+        """)
+
+        st.markdown("### The Machine Learning Model")
+        st.markdown("""
+        The model is a **Logistic Regression classifier** trained on monthly economic data 
+        from 1990 to present. Logistic Regression was chosen over more complex models like 
+        Gradient Boosting because:
+
+        - **Few training examples** — only 3–4 recessions exist in the dataset. Complex 
+          tree-based models tend to memorize those specific events rather than learning 
+          generalizable patterns.
+        - **Interpretability** — logistic regression coefficients directly show how each 
+          indicator pushes the probability up or down, which is important for understanding 
+          *why* the model is signaling risk.
+        - **Regularization (C=0.1)** — strong regularization prevents the model from 
+          overfitting to any single recession's characteristics.
+        - **Balanced class weights** — recessions occur in only ~10% of months. Without 
+          correction the model would just predict "no recession" always. Balanced weights 
+          force the model to treat missed recessions as costly errors, prioritizing **recall** 
+          over precision — appropriate when the cost of missing a recession far exceeds the 
+          cost of a false alarm.
+        """)
+
+        st.markdown("### Preventing Data Leakage")
+        st.markdown("""
+        A critical challenge in time series modeling is **data leakage** — accidentally 
+        allowing the model to learn from future information when predicting the past.
+
+        Two safeguards are in place:
+
+        1. **All features are lagged by at least 1 month** — the model only sees data that 
+           would have been available at the time of prediction.
+        2. **TimeSeriesSplit cross-validation** — instead of randomly shuffling folds 
+           (which would let future data leak into training), each validation fold only 
+           contains data *after* the training fold. This gives an honest estimate of how 
+           the model would perform in real time.
+        """)
+
+        st.markdown("### Target Variable")
+        st.markdown("""
+        The label is `1` if an **NBER-defined recession begins within the next 6 months**, 
+        `0` otherwise. This forward-looking label makes the model practically useful — 
+        it predicts *onset*, not whether a recession is already underway.
+
+        NBER recession dates are the gold standard for US recession classification, 
+        though they are published with a significant lag — meaning the most recent labels 
+        may shift as new data arrives.
+        """)
+
+        st.markdown("### Features & Economic Intuition")
+
+        features = {
+            "Yield Curve (10Y–2Y)": (
+                "When short-term rates exceed long-term rates, banks stop lending "
+                "profitably and credit tightens economy-wide. Yield curve inversion "
+                "has preceded every recession since 1970, typically 12–18 months in advance."
+            ),
+            "Unemployment Rate & 3M Change": (
+                "Rising unemployment signals businesses are contracting. The 3-month "
+                "change is particularly important — it captures the *acceleration* of "
+                "labor market deterioration, not just the level."
+            ),
+            "Sahm Rule Indicator": (
+                "Triggers when the 3-month average unemployment rate rises 0.5 percentage "
+                "points above its prior 12-month low. Designed specifically as an early "
+                "recession indicator with very few historical false positives."
+            ),
+            "Nonfarm Payroll Growth YoY": (
+                "Year-over-year payroll growth turning negative has coincided with every "
+                "recession in the dataset. It captures broad labor market weakness across "
+                "all sectors simultaneously."
+            ),
+            "Core PCE Inflation YoY": (
+                "The Fed's preferred inflation measure. Elevated inflation constrains the "
+                "Fed's ability to cut rates in response to weakness, potentially trapping "
+                "the economy in a high-rate, slowing-growth environment — the stagflation scenario."
+            ),
+            "Consumer Sentiment & 6M Change": (
+                "Consumers drive ~70% of US GDP. Falling sentiment is a forward-looking "
+                "signal that spending is about to slow before it appears in hard economic "
+                "data. The 6-month change captures trend deterioration."
+            ),
+            "Credit Card Delinquency Rate & Change": (
+                "Rising delinquencies signal consumers are financially stressed and "
+                "over-leveraged. Banks respond by tightening credit standards, which "
+                "amplifies the economic slowdown through reduced lending."
+            ),
+            "Federal Funds Rate & 6M Change": (
+                "The trajectory of rate changes shapes borrowing costs economy-wide. "
+                "Historically, the Fed begins cutting rates before recessions — so a "
+                "declining fed funds rate is often a pre-recession signal. The current "
+                "environment (rates on hold) is structurally different from prior recessions."
+            ),
+        }
+
+        for feature, explanation in features.items():
+            with st.expander(feature):
+                st.markdown(explanation)
+
+        st.markdown("### Model Limitations")
+        st.markdown("""
+        - **Few training examples** — only 3–4 recessions since 1990 limits the model's 
+          ability to generalize to novel economic environments.
+        - **Structural differences** — the current environment (high rates, sticky inflation, 
+          Fed on hold) differs from 2001, 2008, and 2020 recessions which all featured 
+          aggressive pre-recession rate cuts. The model may underestimate risk in this regime.
+        - **Black swan events** — sudden shocks like COVID-19 or geopolitical crises are 
+          not predictable from lagged indicators.
+        - **NBER lag** — recession dates are officially confirmed months after onset, 
+          meaning recent training labels may be revised.
+        - This model is a research tool. It is not financial advice.
+        """)
 
 
 if __name__ == "__main__":
