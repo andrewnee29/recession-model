@@ -84,7 +84,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     feat["payroll_negative"]   = (payroll_yoy < 0).astype(int).shift(1)
 
     # --- Inflation ---
-    feat["core_pce_yoy"]       = df["PCEPILFE"].pct_change(12).shift(1) * 100
+    feat["core_pce_yoy"]       = df["PCEPILFE"].pct_change(12, fill_method=None).shift(1) * 100
 
     # --- Consumer sentiment ---
     feat["consumer_sentiment"] = df["UMCSENT"].shift(1)

@@ -20,10 +20,13 @@ I built this because I got genuinely interested in the macro signals accumulatin
 |---|---|
 | Algorithm | Logistic Regression |
 | Mean CV AUC | 0.932 |
+| Most recent fold AUC | 0.727 |
 | Valid folds | 3 of 5 (2 skipped, single class) |
 | Validation method | TimeSeriesSplit |
 | Training period | 1990 – present |
 | Prediction horizon | Recession onset within 6 months |
+
+Note: early folds contain as few as 1–4 recession months in the test set, making perfect AUC achievable by chance. The most recent fold (AUC 0.727) is the most meaningful estimate of real-world performance.
 
 ---
 
