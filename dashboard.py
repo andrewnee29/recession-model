@@ -62,7 +62,10 @@ def main():
 
     # ── Sidebar ──────────────────────────────────────────────
     with st.sidebar:
-        st.header("⚙️ Settings")
+        st.markdown("## 📉 Recession Model")
+        st.caption("Predicts recession risk over the next 6 months using FRED economic data.")
+
+        st.markdown("---")
 
         # API key — prefer environment variable, fallback to text input
         api_key = os.getenv("FRED_API_KEY") or st.text_input(
@@ -72,17 +75,22 @@ def main():
         )
 
         st.markdown("---")
-        st.markdown("**Indicators used:**")
-        for name in list(SERIES.values())[1:]:
-            st.markdown(f"• {name}")
+
+        with st.expander("📊 Indicators used"):
+            for name in list(SERIES.values())[1:]:
+                st.markdown(f"- {name}")
+
+        with st.expander("🧠 Model summary"):
+            st.markdown("""
+            **Algorithm:** Logistic Regression  
+            **Validation:** TimeSeriesSplit (5 folds)  
+            **Features lagged:** ≥1 month  
+            **Target:** Recession onset within 6 months  
+            **Class balancing:** Weighted to prioritize recall  
+            """)
 
         st.markdown("---")
-        st.markdown("**Methodology**")
-        st.markdown(
-            "Gradient Boosting classifier with TimeSeriesSplit CV. "
-            "All features lagged ≥1 month to prevent data leakage. "
-            "Label: recession onset within 3 months."
-        )
+        st.caption("Data sourced from FRED · Not financial advice")
 
     if not api_key:
         st.info("👈 Enter your FRED API key in the sidebar to load data.")
