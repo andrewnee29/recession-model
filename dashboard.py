@@ -122,7 +122,7 @@ def main():
 
     # ── Tabs ─────────────────────────────────────────────────
     tab1, tab2, tab3, tab4 = st.tabs(
-        ["📈 Probability", "📊 Indicators", "🔍 Feature Importance", "📖 Methodology"]
+        ["📈 Probability", "📊 Indicators", "📐 Coefficients", "📖 Methodology"]
     )
 
     # Tab 1 — Recession probability
@@ -200,16 +200,20 @@ def main():
             plot_df, x="importance", y="feature",
             orientation="h", color="importance",
             color_continuous_scale="Reds",
-            title="Top Feature Importances"
+            title="Feature Coefficients (Absolute Value)"
         )
         fig3.update_layout(height=450, coloraxis_showscale=False)
         st.plotly_chart(fig3, use_container_width=True)
 
         top_feature = fi_df.iloc[0]["feature"]
         st.markdown(
-            f"The most predictive feature is **{top_feature}**. "
-            "Features are ranked by how much they reduce impurity "
-            "across all decision trees in the model."
+            f"The strongest predictor is **{top_feature}**. "
+            "Bars show the absolute value of each standardized Logistic Regression "
+            "coefficient — how strongly each feature pushes the predicted probability "
+            "up or down. Features are standardized before training so coefficients "
+            "are directly comparable. Note that correlated features (e.g. unemployment "
+            "and unemp_3m_chg) may split their influence, so interpret individual "
+            "coefficients alongside the methodology tab."
         )
 
     # Tab 4 — Methodology
