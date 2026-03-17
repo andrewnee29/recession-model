@@ -1,0 +1,7 @@
+fredapi
+pandas
+numpy
+matplotlib
+scikit-learn
+streamlit
+plotly
